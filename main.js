@@ -12,6 +12,8 @@ const LEAGUES = [
 const el = {
     awayRuns: document.getElementById('away-runs'),
     homeRuns: document.getElementById('home-runs'),
+    awayHits: document.getElementById('away-hits'),
+    homeHits: document.getElementById('home-hits'),
     inningHalf: document.getElementById('inning-half'),
     inningNum: document.getElementById('inning-num'),
     strikes: document.getElementById('strikes'),
@@ -19,6 +21,7 @@ const el = {
     outsDots: document.getElementById('outs-dots'),
     avg: document.getElementById('avg'),
     currentTeam: document.getElementById('current-team'),
+    abSession: document.getElementById('ab-session'),
     ball: document.getElementById('ball'),
     bat: document.getElementById('bat'),
     swingBtn: document.getElementById('swing-btn'),
@@ -29,7 +32,8 @@ const el = {
     notifTitle: document.getElementById('notif-title'),
     notifBody: document.getElementById('notif-body'),
     notifBtn: document.getElementById('notif-btn'),
-    lineScore: document.getElementById('line-score'),
+    awayRow: document.getElementById('away-row'),
+    homeRow: document.getElementById('home-row'),
     bases: [document.getElementById('base-1'), document.getElementById('base-2'), document.getElementById('base-3')]
 };
 
@@ -37,6 +41,7 @@ const el = {
 let state = {
     strikes: 0, balls: 0, outs: 0,
     awayScore: 0, homeScore: 0,
+    awayHitsCount: 0, homeHitsCount: 0,
     inning: 1, isBottom: false,
     runners: [false, false, false],
     isPitching: false, hasSwung: false,
@@ -45,7 +50,8 @@ let state = {
     careerHits: parseInt(localStorage.getItem('bigManHits')) || 0,
     careerABs: parseInt(localStorage.getItem('bigManABs')) || 0,
     teamIdx: parseInt(localStorage.getItem('bigManTeamIdx')) || 0,
-    currentStep: 'IDLE' // IDLE, COUNTDOWN, PITCHING, RESULT
+    sessionABCount: 0, // 0 to 3
+    lineScore: { away: [0,0,0,0,0,0,0,0,0], home: [0,0,0,0,0,0,0,0,0] }
 };
 
 // --- Audio Engine ---
@@ -84,12 +90,15 @@ function createWhiteNoise(v, d, swell = false) {
 function updateUI() {
     el.awayRuns.textContent = state.awayScore;
     el.homeRuns.textContent = state.homeScore;
+    el.awayHits.textContent = state.awayHitsCount;
+    el.homeHits.textContent = state.homeHitsCount;
     el.inningHalf.textContent = state.isBottom ? "BOT" : "TOP";
     el.inningNum.textContent = state.inning;
     el.strikes.textContent = state.strikes;
     el.balls.textContent = state.balls;
     el.avg.textContent = (state.careerABs === 0 ? 0 : state.careerHits / state.careerABs).toFixed(3).substring(1);
     el.currentTeam.textContent = LEAGUES[state.teamIdx].name;
+    el.abSession.textContent = state.sessionABCount + 1;
     
     el.outsDots.innerHTML = "";
     for (let i = 0; i < 2; i++) {
@@ -100,34 +109,47 @@ function updateUI() {
     state.runners.forEach((r, i) => el.bases[i].classList.toggle('occupied', r));
 
     // Update Line Score row cells
-    const row = state.isBottom ? document.getElementById('home-row') : document.getElementById('away-row');
-    row.cells[state.inning].textContent = state.isBottom ? state.homeScore : state.awayScore;
+    for (let i = 1; i <= 9; i++) {
+        el.awayRow.cells[i].textContent = (i < state.inning || (i === state.inning && state.isBottom)) ? state.lineScore.away[i-1] : "-";
+        el.homeRow.cells[i].textContent = (i < state.inning) ? state.lineScore.home[i-1] : (i === state.inning && state.isBottom ? state.lineScore.home[i-1] : "-");
+    }
 }
 
-function initScenario() {
-    state.currentStep = 'IDLE';
-    state.inning = Math.floor(Math.random() * 9) + 1;
-    state.isBottom = Math.random() > 0.5;
-    state.outs = Math.floor(Math.random() * 3);
-    state.strikes = 0; state.balls = 0;
-    state.awayScore = Math.floor(Math.random() * (state.inning + 1));
-    state.homeScore = Math.floor(Math.random() * (state.inning + 1));
-    state.runners = [Math.random() > 0.7, Math.random() > 0.8, Math.random() > 0.9];
+function startNewGame() {
+    state.sessionABCount = 0;
+    state.awayScore = 0;
+    state.homeScore = 0;
+    state.awayHitsCount = Math.floor(Math.random() * 5);
+    state.homeHitsCount = 0;
+    state.lineScore.away = Array(9).fill(0).map(() => Math.floor(Math.random() * 2));
+    state.lineScore.home = Array(9).fill(0);
+    state.awayScore = state.lineScore.away.reduce((a,b) => a+b, 0);
+    initScenario(1); // Start at random inning 1-3
+}
+
+function initScenario(tier) {
+    state.isPitching = false;
+    state.hasSwung = false;
     state.isGameOver = false;
+    state.strikes = 0;
+    state.balls = 0;
+    state.outs = Math.floor(Math.random() * 3);
     
-    // Clear Line Score cells
-    for(let i=1; i<=9; i++) {
-        document.getElementById('away-row').cells[i].textContent = "-";
-        document.getElementById('home-row').cells[i].textContent = "-";
-    }
+    // Tiered inning progression
+    if (tier === 1) state.inning = Math.floor(Math.random() * 3) + 1;
+    else if (tier === 2) state.inning = Math.floor(Math.random() * 3) + 4;
+    else state.inning = Math.floor(Math.random() * 3) + 7;
+    
+    state.isBottom = Math.random() > 0.5;
+    state.runners = [Math.random() > 0.8, Math.random() > 0.8, Math.random() > 0.9];
     
     el.resultOverlay.classList.add('hidden');
+    el.swingBtn.disabled = true;
     updateUI();
     startCountdown();
 }
 
 function startCountdown() {
-    state.currentStep = 'COUNTDOWN';
     let count = 3;
     const timer = setInterval(() => {
         if (state.isGameOver) { clearInterval(timer); return; }
@@ -138,14 +160,14 @@ function startCountdown() {
 }
 
 function pitch() {
-    state.currentStep = 'PITCHING';
     state.isPitching = true; state.hasSwung = false; el.swingBtn.disabled = false;
     el.status.textContent = "PITCHING!"; playSound('pop');
 
-    state.pitchDuration = 700 + Math.random() * 800; // 0.7s - 1.5s
-    state.isStrikePitch = Math.random() < 0.75;
+    // HARD MODE TUNING
+    state.pitchDuration = 400 + Math.random() * 500; // 0.4s - 0.9s (FAST)
+    state.isStrikePitch = Math.random() < 0.65; // More balls
     const startOff = (Math.random() - 0.5) * 40;
-    const endOff = state.isStrikePitch ? (Math.random() - 0.5) * 60 : (Math.random() > 0.5 ? 80 : -80);
+    const endOff = state.isStrikePitch ? (Math.random() - 0.5) * 50 : (Math.random() > 0.5 ? 70 : -70);
 
     el.ball.style.setProperty('--duration', `${state.pitchDuration}ms`);
     el.ball.style.setProperty('--start-offset', `${startOff}px`);
@@ -166,50 +188,68 @@ function swing() {
     const ballTop = -30 + (390 * progress);
 
     if (ballTop >= STRIKE_ZONE_TOP && ballTop <= STRIKE_ZONE_BOTTOM) resolvePitch(true, ballTop);
-    else resolvePitch(true, -1); // Whiff
+    else resolvePitch(true, -1);
 }
 
 function resolvePitch(swung, ballTop) {
-    state.isPitching = false; state.currentStep = 'RESULT';
+    state.isPitching = false;
     let result = ""; let sound = "thud"; let isHit = false; let isAB = false;
 
     if (!swung) {
-        if (state.isStrikePitch) { result = "STRIKE! (LOOKING)"; }
+        if (state.isStrikePitch) { result = "STRIKE!"; }
         else { result = "BALL!"; state.balls++; }
     } else {
-        if (ballTop === -1) { result = "STRIKE! (WHIFF)"; }
+        if (ballTop === -1) { result = "STRIKE!"; }
         else {
             const accuracy = Math.abs(ballTop - ((STRIKE_ZONE_TOP + STRIKE_ZONE_BOTTOM)/2));
-            if (accuracy < 10) { result = "HOME RUN!!!"; sound = "bigCheer"; isHit = true; isAB = true; }
-            else if (accuracy < 38) { result = "HIT!!"; sound = "cheer"; isHit = true; isAB = true; }
+            if (accuracy < 12) { result = "HOME RUN!!!"; sound = "bigCheer"; isHit = true; isAB = true; addRuns(4); }
+            else if (accuracy < 35) { result = "HIT!!"; sound = "cheer"; isHit = true; isAB = true; addRuns(1); }
             else { result = "FOUL BALL"; sound = "pop"; }
         }
     }
 
-    if (result.includes("STRIKE")) { state.strikes++; if (state.strikes >= 3) { result = "OUT!!"; isAB = true; } }
-    if (state.balls >= 4) { result = "WALK!"; isHit = true; isAB = false; }
+    if (result === "STRIKE!") { state.strikes++; if (state.strikes >= 3) { result = "OUT!!"; isAB = true; } }
+    if (state.balls >= 4) { result = "WALK!"; isHit = true; isAB = false; addRuns(1); }
 
     displayResult(result, sound);
-    if (isAB || isHit) updateCareer(isHit, isAB);
-
-    setTimeout(() => {
-        if (isAB || isHit) checkCareerMove() ? null : initScenario();
-        else {
-            if (result === "OUT!!") initScenario();
-            else {
-                if (state.strikes >= 3 || state.balls >= 4) { state.strikes = 0; state.balls = 0; }
-                el.resultOverlay.classList.add('hidden');
-                updateUI();
-                startCountdown();
-            }
+    if (isAB || isHit) {
+        updateCareer(isHit, isAB);
+        state.sessionABCount++;
+        setTimeout(() => {
+            if (state.sessionABCount >= 3) checkCareerMove() ? null : endGameSession();
+            else initScenario(state.sessionABCount + 1);
+        }, 2000);
+    } else {
+        if (result === "OUT!!") {
+            updateCareer(false, true);
+            state.sessionABCount++;
+            setTimeout(() => {
+                if (state.sessionABCount >= 3) checkCareerMove() ? null : endGameSession();
+                else initScenario(state.sessionABCount + 1);
+            }, 2000);
+        } else {
+            if (state.strikes >= 3 || state.balls >= 4) { state.strikes = 0; state.balls = 0; }
+            setTimeout(() => { el.resultOverlay.classList.add('hidden'); updateUI(); startCountdown(); }, 1500);
         }
-    }, 1500);
+    }
+}
+
+function addRuns(count) {
+    if (state.isBottom) {
+        state.homeScore += count;
+        state.homeHitsCount++;
+        state.lineScore.home[state.inning-1] += count;
+    } else {
+        state.awayScore += count;
+        state.awayHitsCount++;
+        state.lineScore.away[state.inning-1] += count;
+    }
 }
 
 function displayResult(text, sound) {
     el.resultText.textContent = text;
     el.resultOverlay.classList.remove('hidden');
-    playSound('crack'); // Always bat sound if swung? No, only on hit/foul
+    if (text.includes("HIT") || text === "HOME RUN!!!" || text === "FOUL BALL") playSound('crack');
     if (sound) playSound(sound);
     updateUI();
 }
@@ -223,19 +263,22 @@ function updateCareer(isHit, isAB) {
 
 function checkCareerMove() {
     const avg = state.careerHits / state.careerABs;
-    let moved = false;
     if (avg > LEAGUES[state.teamIdx].max && state.teamIdx < LEAGUES.length - 1) {
-        showNotif("PROMOTION!", `OFFER: ${LEAGUES[state.teamIdx+1].team}!`, () => { state.teamIdx++; saveCareer(); initScenario(); });
-        moved = true;
+        showNotif("PROMOTION!", `OFFER: ${LEAGUES[state.teamIdx+1].team}!`, () => { state.teamIdx++; saveCareer(); startNewGame(); });
+        return true;
     } else if (avg < LEAGUES[state.teamIdx].min && state.teamIdx > 0) {
-        showNotif("DEMOTION", `BACK TO ${LEAGUES[state.teamIdx-1].team}`, () => { state.teamIdx--; saveCareer(); initScenario(); });
-        moved = true;
+        showNotif("DEMOTED", `BACK TO ${LEAGUES[state.teamIdx-1].team}`, () => { state.teamIdx--; saveCareer(); startNewGame(); });
+        return true;
     }
-    return moved;
+    return false;
 }
 
-function saveCareer() {
-    localStorage.setItem('bigManTeamIdx', state.teamIdx);
+function saveCareer() { localStorage.setItem('bigManTeamIdx', state.teamIdx); }
+
+function endGameSession() {
+    const win = state.homeScore > state.awayScore;
+    const msg = win ? "VICTORY!" : (state.homeScore === state.awayScore ? "DRAW!" : "DEFEAT...");
+    showNotif("GAME OVER", `${msg}\nFinal: Away ${state.awayScore} - Home ${state.homeScore}`, () => startNewGame());
 }
 
 function showNotif(title, body, cb) {
@@ -246,4 +289,4 @@ function showNotif(title, body, cb) {
 
 el.swingBtn.addEventListener('click', swing);
 document.addEventListener('keydown', (e) => { if (e.code === 'Space' && !el.swingBtn.disabled) swing(); });
-initScenario();
+startNewGame();
