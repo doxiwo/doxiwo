@@ -3,21 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Action Baseball - Batter Mode</title>
+    <title>Action Baseball - 9th Inning Bottom</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="game-container">
         <div id="game-header">
             <h1>Action Baseball</h1>
-            <div id="best-score">Best: <span id="high-score">0</span></div>
+            <div id="inning-display">9th (Bottom)</div>
         </div>
         
         <div id="scoreboard">
-            <div class="stat">Strikes: <span id="strikes">0</span></div>
-            <div class="stat">Balls: <span id="balls">0</span></div>
-            <div class="stat">Outs: <span id="outs">0</span></div>
-            <div class="stat">Runs: <span id="runs">0</span></div>
+            <div class="score-team">Away: <span id="away-score">0</span></div>
+            <div class="score-team">Home: <span id="home-score">0</span></div>
+        </div>
+
+        <div id="stats-bar">
+            <div class="stat">S: <span id="strikes">0</span></div>
+            <div class="stat">B: <span id="balls">0</span></div>
+            <div class="stat">O: <span id="outs">2</span></div>
         </div>
 
         <div id="field">
@@ -43,11 +47,10 @@
         </div>
 
         <div id="controls">
-            <button id="pitch-btn">Pitch</button>
-            <button id="swing-btn" disabled>Swing!</button>
+            <button id="swing-btn" disabled>Swing! (Space)</button>
         </div>
 
-        <div id="message">Press 'Pitch' (or Space) to start!</div>
+        <div id="message">Next pitch in 3s...</div>
     </div>
     <script src="main.js"></script>
 </body>

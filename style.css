@@ -22,11 +22,11 @@ body {
 
 #game-container {
     background-color: white;
-    padding: 1.5rem 2rem;
+    padding: 1rem 1.5rem;
     border-radius: 12px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     text-align: center;
-    max-width: 500px;
+    max-width: 400px;
     width: 100%;
 }
 
@@ -37,32 +37,36 @@ body {
     margin-bottom: 0.5rem;
 }
 
-h1 { margin: 0; font-size: 1.5rem; color: #2c3e50; }
-
-#best-score {
-    background: #f1c40f;
-    color: #000;
-    padding: 0.3rem 0.8rem;
-    border-radius: 20px;
-    font-weight: bold;
-    font-size: 0.9rem;
-}
+h1 { margin: 0; font-size: 1.2rem; color: #2c3e50; }
+#inning-display { font-weight: bold; color: #e67e22; font-size: 0.9rem; }
 
 #scoreboard {
     display: flex;
-    justify-content: space-around;
+    justify-content: space-between;
     background: #34495e;
     color: white;
-    padding: 0.8rem;
+    padding: 0.6rem 1rem;
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+
+#stats-bar {
+    display: flex;
+    justify-content: space-around;
+    background: #2c3e50;
+    color: #ecf0f1;
+    padding: 0.4rem;
     border-radius: 8px;
     margin-bottom: 1rem;
+    font-size: 0.85rem;
 }
 
 .stat { font-weight: bold; }
 
 #field {
     width: 100%;
-    height: 300px;
+    height: 280px;
     background-color: var(--field-bg);
     position: relative;
     overflow: hidden;
@@ -74,25 +78,25 @@ h1 { margin: 0; font-size: 1.5rem; color: #2c3e50; }
 /* Diamond Mini-map */
 #diamond {
     position: absolute;
-    top: 20px;
-    right: 20px;
-    width: 60px;
-    height: 60px;
+    top: 15px;
+    right: 15px;
+    width: 50px;
+    height: 50px;
     border: 1px solid rgba(255, 255, 255, 0.1);
     transform: rotate(45deg);
 }
 
 .base {
     position: absolute;
-    width: 12px;
-    height: 12px;
+    width: 10px;
+    height: 10px;
     background-color: var(--base-color);
     border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
-#base-1 { bottom: -6px; right: -6px; }
-#base-2 { top: -6px; right: -6px; }
-#base-3 { top: -6px; left: -6px; }
+#base-1 { bottom: -5px; right: -5px; }
+#base-2 { top: -5px; right: -5px; }
+#base-3 { top: -5px; left: -5px; }
 
 .base.occupied {
     background-color: var(--runner-color);
@@ -139,54 +143,31 @@ h1 { margin: 0; font-size: 1.5rem; color: #2c3e50; }
     z-index: 1;
 }
 
-#bat.swinging {
-    transform: rotate(-150deg);
-}
+#bat.swinging { transform: rotate(-150deg); }
 
-#settings {
-    margin-bottom: 1rem;
-    font-size: 0.9rem;
-}
+#settings { margin-bottom: 1rem; font-size: 0.85rem; }
+#settings select { padding: 0.2rem; border-radius: 4px; }
 
-#settings select {
-    padding: 0.3rem;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-    cursor: pointer;
-}
+#controls { display: flex; justify-content: center; }
 
-#controls {
-    display: flex;
-    gap: 1rem;
-    justify-content: center;
-    margin-bottom: 1rem;
-}
-
-button {
-    padding: 0.8rem 1.5rem;
-    font-size: 1.1rem;
-    font-weight: bold;
+#swing-btn {
+    width: 100%;
+    padding: 1rem;
+    font-size: 1.2rem;
+    background-color: var(--secondary-btn);
+    color: white;
     border: none;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
-    transition: transform 0.1s, background-color 0.2s;
 }
 
-button:active { transform: scale(0.95); }
-
-#pitch-btn { background-color: var(--primary-btn); color: white; }
-#swing-btn { background-color: var(--secondary-btn); color: white; }
-
-button:disabled {
-    background-color: #bdc3c7;
-    cursor: not-allowed;
-    transform: none;
-}
+#swing-btn:disabled { background-color: #bdc3c7; cursor: not-allowed; }
 
 #message {
     font-size: 1.1rem;
     font-weight: bold;
     height: 1.4rem;
+    margin-top: 0.8rem;
     color: #2c3e50;
 }
 
@@ -204,10 +185,7 @@ button:disabled {
     }
 }
 
-.pitching {
-    animation: ball-pitch var(--duration) linear forwards;
-}
-
+.pitching { animation: ball-pitch var(--duration) linear forwards; }
 .hit { color: #27ae60 !important; }
 .strike { color: #e74c3c !important; }
 .ball-call { color: #f1c40f !important; }
