@@ -1,11 +1,11 @@
 // --- DOM Elements ---
 const strikesSpan = document.getElementById('strikes');
 const ballsSpan = document.getElementById('balls');
-const outsSpan = document.getElementById('outs');
-const awayScoreSpan = document.getElementById('away-score');
-const homeScoreSpan = document.getElementById('home-score');
-const inningNumSpan = document.getElementById('inning-num');
-const inningHalfSpan = document.getElementById('inning-half');
+const outsDots = document.getElementById('outs-dots');
+const awayTotal = document.getElementById('away-total');
+const homeTotal = document.getElementById('home-total');
+const inningNum = document.getElementById('inning-num');
+const inningHalf = document.getElementById('inning-half');
 const avgSpan = document.getElementById('avg');
 const scoutTeamSpan = document.getElementById('scout-team');
 const swingBtn = document.getElementById('swing-btn');
@@ -14,11 +14,9 @@ const ball = document.getElementById('ball');
 const bat = document.getElementById('bat');
 const strikeZone = document.getElementById('strike-zone');
 const difficultySelect = document.getElementById('difficulty');
-const bases = [
-    document.getElementById('base-1'),
-    document.getElementById('base-2'),
-    document.getElementById('base-3')
-];
+const bases = [document.getElementById('base-1'), document.getElementById('base-2'), document.getElementById('base-3')];
+const awayLineRow = document.getElementById('away-line');
+const homeLineRow = document.getElementById('home-line');
 
 // --- Game State ---
 let strikes = 0;
@@ -26,7 +24,7 @@ let balls = 0;
 let outs = 0;
 let awayScore = 0;
 let homeScore = 0;
-let inning = 1;
+let currentInning = 1;
 let isBottom = false;
 let runners = [false, false, false];
 let isPitching = false;
@@ -40,6 +38,10 @@ let autoPitchTimer = null;
 // Career Stats
 let careerHits = parseInt(localStorage.getItem('bigManHits')) || 0;
 let careerAtBats = parseInt(localStorage.getItem('bigManAtBats')) || 0;
+
+// Line Score Data
+let awayLine = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+let homeLine = [0, 0, 0, 0, 0, 0, 0, 0, 0];
 
 const STRIKE_ZONE_TOP = 200; 
 const STRIKE_ZONE_BOTTOM = 280;
@@ -108,35 +110,65 @@ function updateAvgDisplay() {
     else scoutTeamSpan.textContent = "Local League Scouts";
 }
 
+// --- Line Score Management ---
+function updateLineScoreUI() {
+    awayTotal.textContent = awayScore;
+    homeTotal.textContent = homeScore;
+    
+    for (let i = 0; i < 9; i++) {
+        awayLineRow.cells[i+1].textContent = (i + 1 < currentInning || (i + 1 === currentInning && isBottom)) ? awayLine[i] : (i + 1 === currentInning ? awayLine[i] : "-");
+        homeLineRow.cells[i+1].textContent = (i + 1 < currentInning) ? homeLine[i] : (i + 1 === currentInning && isBottom ? homeLine[i] : "-");
+    }
+}
+
 // --- Game Logic ---
-function initRandomGame() {
+function initRandomScenario() {
     isGameOver = false;
-    inning = Math.floor(Math.random() * 9) + 1;
+    currentInning = Math.floor(Math.random() * 9) + 1;
     isBottom = Math.random() > 0.5;
     outs = Math.floor(Math.random() * 3);
     strikes = 0; balls = 0;
     
-    // Weighted random score based on inning
-    awayScore = Math.floor(Math.random() * (inning + 1));
-    homeScore = Math.floor(Math.random() * (inning + 1));
+    // Generate Line Score
+    awayScore = 0; homeScore = 0;
+    for (let i = 0; i < 9; i++) {
+        if (i + 1 < currentInning) {
+            awayLine[i] = Math.floor(Math.random() * 3);
+            homeLine[i] = Math.floor(Math.random() * 3);
+        } else if (i + 1 === currentInning) {
+            awayLine[i] = Math.floor(Math.random() * 2);
+            homeLine[i] = isBottom ? Math.floor(Math.random() * 2) : 0;
+        } else {
+            awayLine[i] = 0; homeLine[i] = 0;
+        }
+        awayScore += awayLine[i];
+        homeScore += homeLine[i];
+    }
     
-    // Random runners
     runners = [Math.random() > 0.7, Math.random() > 0.8, Math.random() > 0.9];
     
     updateScoreboard();
+    updateLineScoreUI();
     updateBasesUI();
     updateAvgDisplay();
-    startAutoPitch();
+    
+    messageDiv.textContent = "Big Man stepping in...";
+    setTimeout(startAutoPitch, 1500);
 }
 
 function updateScoreboard() {
     strikesSpan.textContent = strikes;
     ballsSpan.textContent = balls;
-    outsSpan.textContent = outs;
-    awayScoreSpan.textContent = awayScore;
-    homeScoreSpan.textContent = homeScore;
-    inningNumSpan.textContent = inning;
-    inningHalfSpan.textContent = isBottom ? "Bottom" : "Top";
+    inningNum.textContent = currentInning;
+    inningHalf.textContent = isBottom ? "Bottom" : "Top";
+    
+    // Update Outs dots
+    outsDots.innerHTML = "";
+    for (let i = 0; i < 2; i++) {
+        const dot = document.createElement('div');
+        dot.className = 'out-dot' + (i < outs ? ' filled' : '');
+        outsDots.appendChild(dot);
+    }
 }
 
 function updateBasesUI() {
@@ -221,8 +253,15 @@ function advanceRunners(numBases) {
     }
     if (numBases < 4) runners[numBases - 1] = true; else newRuns++; 
     if (newRuns > 0) {
-        if (isBottom) homeScore += newRuns; else awayScore += newRuns;
+        if (isBottom) {
+            homeScore += newRuns;
+            homeLine[currentInning-1] += newRuns;
+        } else {
+            awayScore += newRuns;
+            awayLine[currentInning-1] += newRuns;
+        }
         checkWalkOff();
+        updateLineScoreUI();
     }
     updateBasesUI();
 }
@@ -247,7 +286,7 @@ function handleBall() {
 }
 
 function checkWalkOff() {
-    if (inning >= 9 && isBottom && homeScore > awayScore) {
+    if (currentInning >= 9 && isBottom && homeScore > awayScore) {
         isGameOver = true;
         messageDiv.textContent = "WALK-OFF VICTORY!!!";
         endGame();
@@ -256,18 +295,19 @@ function checkWalkOff() {
 
 function checkInningEnd() {
     if (outs >= 3) {
-        if (inning >= 9 && (!isBottom || homeScore !== awayScore)) {
+        if (currentInning >= 9 && (!isBottom || homeScore !== awayScore)) {
             isGameOver = true;
             endGame();
         } else {
-            // Next half-inning
             outs = 0; strikes = 0; balls = 0;
             runners = [false, false, false];
-            if (isBottom) { inning++; isBottom = false; } else { isBottom = true; }
-            messageDiv.textContent = `Inning ${inning} ${isBottom ? "Bottom" : "Top"} begins!`;
+            if (isBottom) { currentInning++; isBottom = false; } else { isBottom = true; }
+            messageDiv.textContent = `${isBottom ? "Bottom" : "Top"} of ${currentInning} begins!`;
             updateBasesUI();
+            updateLineScoreUI();
         }
     }
+    updateScoreboard();
 }
 
 function endPitch(swung) {
@@ -284,10 +324,10 @@ function endGame() {
     const win = homeScore > awayScore;
     const msg = win ? "VICTORY!" : (homeScore === awayScore ? "DRAW!" : "DEFEAT...");
     setTimeout(() => {
-        if (confirm(`${msg}\nFinal: Away ${awayScore} - Home ${homeScore}\nPlay again?`)) initRandomGame();
+        if (confirm(`${msg}\nFinal: Away ${awayScore} - Home ${homeScore}\nPlay again?`)) initRandomScenario();
     }, 1000);
 }
 
 swingBtn.addEventListener('click', swing);
 document.addEventListener('keydown', (e) => { if (e.code === 'Space' && !swingBtn.disabled) swing(); });
-initRandomGame();
+initRandomScenario();

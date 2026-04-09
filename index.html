@@ -3,31 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Big Man's Full-Game Simulation</title>
+    <title>Big Man's Broadcast Career</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="game-container">
-        <div id="game-header">
-            <h1>Action Baseball</h1>
-            <div id="inning-display"><span id="inning-num">1</span>st (<span id="inning-half">Top</span>)</div>
+        <!-- Line Score Table -->
+        <table id="line-score">
+            <thead>
+                <tr id="inning-headers">
+                    <th>Teams</th>
+                    <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th>
+                    <th class="total">R</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr id="away-line">
+                    <td>Away</td>
+                    <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+                    <td class="total" id="away-total">0</td>
+                </tr>
+                <tr id="home-line">
+                    <td>Home</td>
+                    <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
+                    <td class="total" id="home-total">0</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div id="broadcast-header">
+            <div id="inning-display">Inning: <span id="inning-num">1</span>st (<span id="inning-half">Top</span>)</div>
+            <div id="outs-display">Outs: <span id="outs-dots"></span></div>
         </div>
 
-        <div id="batter-profile">
-            <div class="profile-info">Batter: <strong>Big Man</strong></div>
-            <div class="profile-info">AVG: <span id="avg">.000</span></div>
-            <div id="scout-report">Scouts: <span id="scout-team">Local League</span></div>
+        <div id="batter-card">
+            <div id="batter-name">BIG MAN</div>
+            <div id="batter-stats">AVG: <span id="avg">.000</span> | <span id="scout-team">Local League</span></div>
         </div>
         
-        <div id="scoreboard">
-            <div class="score-team">Away: <span id="away-score">0</span></div>
-            <div class="score-team">Home: <span id="home-score">0</span></div>
-        </div>
-
         <div id="stats-bar">
-            <div class="stat">S: <span id="strikes">0</span></div>
-            <div class="stat">B: <span id="balls">0</span></div>
-            <div class="stat">O: <span id="outs">0</span></div>
+            <div class="stat">Strikes: <span id="strikes">0</span></div>
+            <div class="stat">Balls: <span id="balls">0</span></div>
         </div>
 
         <div id="field">
@@ -55,7 +71,7 @@
             <button id="swing-btn" disabled>Swing! (Space)</button>
         </div>
 
-        <div id="message">Loading game...</div>
+        <div id="message">Big Man is stepping in...</div>
     </div>
     <script src="main.js"></script>
 </body>
