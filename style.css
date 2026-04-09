@@ -1,28 +1,145 @@
+:root {
+    --field-bg: #2d5a27;
+    --strike-zone-border: rgba(255, 255, 255, 0.5);
+    --ball-color: #fff;
+    --primary-btn: #3498db;
+    --secondary-btn: #e67e22;
+}
+
 body {
-    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #ecf0f1;
     display: flex;
     justify-content: center;
     align-items: center;
     min-height: 100vh;
-    background-color: #f0f0f0;
 }
 
-#game {
-    text-align: center;
+#game-container {
     background-color: white;
     padding: 2rem;
-    border-radius: 10px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    text-align: center;
+    max-width: 500px;
+    width: 100%;
 }
 
 #scoreboard {
     display: flex;
     justify-content: space-around;
+    background: #34495e;
+    color: white;
+    padding: 0.8rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.stat {
+    font-weight: bold;
+}
+
+#field {
+    width: 100%;
+    height: 300px;
+    background-color: var(--field-bg);
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    border: 4px solid #1e3d1a;
+}
+
+#strike-zone {
+    width: 80px;
+    height: 80px;
+    border: 2px dashed var(--strike-zone-border);
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    pointer-events: none;
+}
+
+#ball {
+    width: 20px;
+    height: 20px;
+    background-color: var(--ball-color);
+    border-radius: 50%;
+    position: absolute;
+    top: -30px;
+    left: 50%;
+    transform: translateX(-50%);
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+}
+
+#controls {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
     margin-bottom: 1rem;
 }
 
 button {
-    padding: 0.5rem 1rem;
-    font-size: 1rem;
+    padding: 0.8rem 1.5rem;
+    font-size: 1.1rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 6px;
     cursor: pointer;
+    transition: transform 0.1s, background-color 0.2s;
 }
+
+button:active {
+    transform: scale(0.95);
+}
+
+#pitch-btn {
+    background-color: var(--primary-btn);
+    color: white;
+}
+
+#swing-btn {
+    background-color: var(--secondary-btn);
+    color: white;
+}
+
+button:disabled {
+    background-color: #bdc3c7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+#message {
+    font-size: 1.2rem;
+    font-weight: bold;
+    height: 1.5rem;
+    color: #2c3e50;
+}
+
+/* Animations */
+@keyframes ball-pitch {
+    0% {
+        top: -30px;
+        opacity: 0;
+        transform: translateX(calc(-50% + var(--start-offset))) scale(0.5);
+    }
+    10% {
+        opacity: 1;
+    }
+    100% {
+        top: 350px;
+        transform: translateX(calc(-50% + var(--end-offset))) scale(1.5);
+    }
+}
+
+.pitching {
+    animation: ball-pitch var(--duration) linear forwards;
+}
+
+.hit { color: #27ae60 !important; }
+.strike { color: #e74c3c !important; }
+.ball-call { color: #f1c40f !important; }

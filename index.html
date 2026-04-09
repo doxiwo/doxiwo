@@ -3,19 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Baseball Game</title>
+    <title>Action Baseball Game</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <h1>Baseball Game</h1>
-    <div id="game">
+    <div id="game-container">
+        <h1>Action Baseball</h1>
+        
         <div id="scoreboard">
-            <p>Strikes: <span id="strikes">0</span></p>
-            <p>Balls: <span id="balls">0</span></p>
-            <p>Outs: <span id="outs">0</span></p>
+            <div class="stat">Strikes: <span id="strikes">0</span></div>
+            <div class="stat">Balls: <span id="balls">0</span></div>
+            <div class="stat">Outs: <span id="outs">0</span></div>
+            <div class="stat">Runs: <span id="runs">0</span></div>
         </div>
-        <button id="pitch">Pitch</button>
-        <div id="result"></div>
+
+        <div id="field">
+            <div id="strike-zone"></div>
+            <div id="ball"></div>
+        </div>
+
+        <div id="controls">
+            <button id="pitch-btn">Pitch</button>
+            <button id="swing-btn" disabled>Swing!</button>
+        </div>
+
+        <div id="message">Press 'Pitch' to start!</div>
     </div>
     <script src="main.js"></script>
 </body>
