@@ -45,6 +45,9 @@ const LEAGUES = [
     { name: "MLB (Elite)", team: "NY Yankees", minAvg: 0.450, maxAvg: 1.0 }
 ];
 
+let awayLine = [0,0,0,0,0,0,0,0,0];
+let homeLine = [0,0,0,0,0,0,0,0,0];
+
 const STRIKE_ZONE_TOP = 180, STRIKE_ZONE_BOTTOM = 260;
 
 // --- Audio ---
@@ -60,9 +63,9 @@ function playSound(type) {
     } else if (type === 'thud') {
         createOsc(80, 40, 0.4, 0.2, 'triangle');
     } else if (type === 'cheer') {
-        createWhiteNoise(0.3, 1.5, true); // Sustained swell
+        createWhiteNoise(0.3, 1.5, true); 
     } else if (type === 'bigCheer') {
-        createWhiteNoise(0.5, 3.0, true); // HR swell
+        createWhiteNoise(0.5, 3.0, true); 
     }
 }
 function createOsc(startFreq, endFreq, vol, dur, type = 'sine') {
@@ -104,7 +107,7 @@ function updateCareerStats(isHit, isAtBat) {
     if (isHit) careerHits++;
     if (isAtBat) { careerAtBats++; sessionABs++; }
     localStorage.setItem('bigManHits', careerHits);
-    localStorage.setItem('bigManAtBats', careerAtBats);
+    localStorage.setItem('bigManAtBats', careerAtAtBats);
     updateAvgDisplay();
 }
 
@@ -156,18 +159,39 @@ function showNotification(title, body, callback) {
     notifOverlay.classList.remove('hidden');
 }
 
+// --- Line Score Management ---
+function updateLineScoreUI() {
+    awayTotal.textContent = awayScore;
+    homeTotal.textContent = homeScore;
+    for (let i = 0; i < 9; i++) {
+        awayLineRow.cells[i+1].textContent = (i + 1 < currentInning || (i + 1 === currentInning && isBottom)) ? awayLine[i] : (i + 1 === currentInning ? awayLine[i] : "-");
+        homeLineRow.cells[i+1].textContent = (i + 1 < currentInning) ? homeLine[i] : (i + 1 === currentInning && isBottom ? homeLine[i] : "-");
+    }
+}
+
 // --- Game Logic ---
 function initRandomScenario() {
     isGameOver = false; strikes = 0; balls = 0; outs = Math.floor(Math.random() * 3);
     currentInning = Math.floor(Math.random() * 9) + 1; isBottom = Math.random() > 0.5;
     awayScore = 0; homeScore = 0;
-    const lineArr = [0,0,0,0,0,0,0,0,0];
+    
     for (let i = 0; i < 9; i++) {
-        const r = (i + 1 < currentInning) ? Math.floor(Math.random() * 3) : 0;
-        awayScore += r; homeScore += r;
+        if (i + 1 < currentInning) {
+            awayLine[i] = Math.floor(Math.random() * 3);
+            homeLine[i] = Math.floor(Math.random() * 3);
+        } else if (i + 1 === currentInning) {
+            awayLine[i] = Math.floor(Math.random() * 2);
+            homeLine[i] = isBottom ? Math.floor(Math.random() * 2) : 0;
+        } else {
+            awayLine[i] = 0; homeLine[i] = 0;
+        }
+        awayScore += awayLine[i];
+        homeScore += homeLine[i];
     }
+    
     runners = [Math.random() > 0.7, Math.random() > 0.8, Math.random() > 0.9];
     updateScoreboard();
+    updateLineScoreUI();
     updateAvgDisplay();
     messageDiv.textContent = "Highlight loading...";
     setTimeout(startAutoPitch, 1500);
@@ -237,13 +261,59 @@ function handleHit(ballTop) {
     playSound('crack');
     const accuracy = Math.abs(ballTop - ((STRIKE_ZONE_TOP + STRIKE_ZONE_BOTTOM) / 2));
     let hitResult = "";
-    if (accuracy < 10) { hitResult = "HOME RUN!!!"; playSound('bigCheer'); updateCareerStats(true, true); }
-    else if (accuracy < 38) { hitResult = "Hit!"; playSound('cheer'); updateCareerStats(true, true); }
+    if (accuracy < 10) { 
+        hitResult = "HOME RUN!!!"; 
+        playSound('bigCheer'); 
+        advanceRunners(4);
+        updateCareerStats(true, true); 
+    }
+    else if (accuracy < 20) {
+        hitResult = "Triple!";
+        playSound('cheer');
+        advanceRunners(3);
+        updateCareerStats(true, true);
+    }
+    else if (accuracy < 30) {
+        hitResult = "Double!";
+        playSound('cheer');
+        advanceRunners(2);
+        updateCareerStats(true, true);
+    }
+    else if (accuracy < 38) {
+        hitResult = "Single!";
+        playSound('cheer');
+        advanceRunners(1);
+        updateCareerStats(true, true);
+    }
     else { hitResult = "Foul Ball"; if (strikes < 2) strikes++; }
+    
     messageDiv.textContent = hitResult;
     if (hitResult !== "Foul Ball") {
+        strikes = 0; balls = 0;
         if (!checkCareerMove()) setTimeout(initRandomScenario, 1500);
     }
+}
+
+function advanceRunners(numBases) {
+    let newRuns = 0;
+    for (let i = 2; i >= 0; i--) {
+        if (runners[i]) {
+            runners[i] = false;
+            if (i + numBases >= 3) newRuns++; else runners[i + numBases] = true;
+        }
+    }
+    if (numBases < 4) runners[numBases - 1] = true; else newRuns++; 
+    if (newRuns > 0) {
+        if (isBottom) {
+            homeScore += newRuns;
+            homeLine[currentInning-1] += newRuns;
+        } else {
+            awayScore += newRuns;
+            awayLine[currentInning-1] += newRuns;
+        }
+        updateLineScoreUI();
+    }
+    updateBasesUI();
 }
 
 function handleStrike(msg) {
@@ -260,7 +330,7 @@ function handleBall() {
     balls++; messageDiv.textContent = "Ball!";
     if (balls >= 4) {
         messageDiv.textContent = "Walk!";
-        updateCareerStats(true, false); // Walk is not an AB but we'll count it as a "hit" for fun or just skip update
+        advanceRunners(1);
         if (!checkCareerMove()) setTimeout(initRandomScenario, 1500);
     }
 }
