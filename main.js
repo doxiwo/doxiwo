@@ -43,8 +43,8 @@ let careerAtBats = parseInt(localStorage.getItem('bigManAtBats')) || 0;
 let awayLine = [0, 0, 0, 0, 0, 0, 0, 0, 0];
 let homeLine = [0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-const STRIKE_ZONE_TOP = 200; 
-const STRIKE_ZONE_BOTTOM = 280;
+const STRIKE_ZONE_TOP = 180; 
+const STRIKE_ZONE_BOTTOM = 260;
 
 // --- Sound Engine ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -114,7 +114,6 @@ function updateAvgDisplay() {
 function updateLineScoreUI() {
     awayTotal.textContent = awayScore;
     homeTotal.textContent = homeScore;
-    
     for (let i = 0; i < 9; i++) {
         awayLineRow.cells[i+1].textContent = (i + 1 < currentInning || (i + 1 === currentInning && isBottom)) ? awayLine[i] : (i + 1 === currentInning ? awayLine[i] : "-");
         homeLineRow.cells[i+1].textContent = (i + 1 < currentInning) ? homeLine[i] : (i + 1 === currentInning && isBottom ? homeLine[i] : "-");
@@ -128,8 +127,6 @@ function initRandomScenario() {
     isBottom = Math.random() > 0.5;
     outs = Math.floor(Math.random() * 3);
     strikes = 0; balls = 0;
-    
-    // Generate Line Score
     awayScore = 0; homeScore = 0;
     for (let i = 0; i < 9; i++) {
         if (i + 1 < currentInning) {
@@ -144,15 +141,12 @@ function initRandomScenario() {
         awayScore += awayLine[i];
         homeScore += homeLine[i];
     }
-    
     runners = [Math.random() > 0.7, Math.random() > 0.8, Math.random() > 0.9];
-    
     updateScoreboard();
     updateLineScoreUI();
     updateBasesUI();
     updateAvgDisplay();
-    
-    messageDiv.textContent = "Big Man stepping in...";
+    messageDiv.textContent = "Big Man highlights...";
     setTimeout(startAutoPitch, 1500);
 }
 
@@ -161,8 +155,6 @@ function updateScoreboard() {
     ballsSpan.textContent = balls;
     inningNum.textContent = currentInning;
     inningHalf.textContent = isBottom ? "Bottom" : "Top";
-    
-    // Update Outs dots
     outsDots.innerHTML = "";
     for (let i = 0; i < 2; i++) {
         const dot = document.createElement('div');
@@ -196,19 +188,15 @@ function pitch() {
     const settings = diff === 'easy' ? { dr: [1200, 1800], sp: 0.9, zs: 100 } :
                      diff === 'hard' ? { dr: [500, 800], sp: 0.5, zs: 60 } :
                      { dr: [700, 1300], sp: 0.7, zs: 80 };
-
     strikeZone.style.width = settings.zs + 'px';
     strikeZone.style.height = settings.zs + 'px';
-    isPitching = true; hasSwung = false;
-    swingBtn.disabled = false;
+    isPitching = true; hasSwung = false; swingBtn.disabled = false;
     messageDiv.textContent = "Pitch is coming!";
     playSound('pop');
-
     pitchDuration = settings.dr[0] + Math.random() * (settings.dr[1] - settings.dr[0]);
     isStrikePitch = Math.random() < settings.sp;
     const startOffset = (Math.random() - 0.5) * 40;
     const endOffset = isStrikePitch ? (Math.random() - 0.5) * settings.zs : (Math.random() > 0.5 ? 80 : -80);
-
     ball.style.setProperty('--duration', `${pitchDuration}ms`);
     ball.style.setProperty('--start-offset', `${startOffset}px`);
     ball.style.setProperty('--end-offset', `${endOffset}px`);
@@ -235,12 +223,17 @@ function handleHit(ballTop) {
     playSound('crack');
     const center = (STRIKE_ZONE_TOP + STRIKE_ZONE_BOTTOM) / 2;
     const accuracy = Math.abs(ballTop - center);
-    if (accuracy < 10) { messageDiv.textContent = "HOME RUN!!!"; advanceRunners(4); updateCareerStats(true, true); }
-    else if (accuracy < 20) { messageDiv.textContent = "Triple!"; advanceRunners(3); updateCareerStats(true, true); }
-    else if (accuracy < 30) { messageDiv.textContent = "Double!"; advanceRunners(2); updateCareerStats(true, true); }
-    else if (accuracy < 38) { messageDiv.textContent = "Single!"; advanceRunners(1); updateCareerStats(true, true); }
-    else { messageDiv.textContent = "Foul Ball"; if (strikes < 2) strikes++; }
-    strikes = 0; balls = 0;
+    let hitResult = "";
+    if (accuracy < 10) { hitResult = "HOME RUN!!!"; advanceRunners(4); updateCareerStats(true, true); }
+    else if (accuracy < 20) { hitResult = "Triple!"; advanceRunners(3); updateCareerStats(true, true); }
+    else if (accuracy < 30) { hitResult = "Double!"; advanceRunners(2); updateCareerStats(true, true); }
+    else if (accuracy < 38) { hitResult = "Single!"; advanceRunners(1); updateCareerStats(true, true); }
+    else { hitResult = "Foul Ball"; if (strikes < 2) strikes++; }
+    messageDiv.textContent = hitResult;
+    if (hitResult !== "Foul Ball") {
+        strikes = 0; balls = 0;
+        setTimeout(initRandomScenario, 1000); // Jump to next highlight
+    }
 }
 
 function advanceRunners(numBases) {
@@ -253,27 +246,18 @@ function advanceRunners(numBases) {
     }
     if (numBases < 4) runners[numBases - 1] = true; else newRuns++; 
     if (newRuns > 0) {
-        if (isBottom) {
-            homeScore += newRuns;
-            homeLine[currentInning-1] += newRuns;
-        } else {
-            awayScore += newRuns;
-            awayLine[currentInning-1] += newRuns;
-        }
-        checkWalkOff();
-        updateLineScoreUI();
+        if (isBottom) homeScore += newRuns; else awayScore += newRuns;
     }
-    updateBasesUI();
 }
 
 function handleStrike(msg) {
     playSound('thud');
     strikes++; messageDiv.textContent = msg;
     if (strikes >= 3) {
-        outs++; messageDiv.textContent = "OUT!";
+        messageDiv.textContent = "OUT!";
         updateCareerStats(false, true);
         strikes = 0; balls = 0;
-        checkInningEnd();
+        setTimeout(initRandomScenario, 1000); // Jump to next highlight
     }
 }
 
@@ -282,32 +266,8 @@ function handleBall() {
     if (balls >= 4) {
         messageDiv.textContent = "Walk!";
         advanceRunners(1); strikes = 0; balls = 0;
+        setTimeout(initRandomScenario, 1000); // Jump to next highlight
     }
-}
-
-function checkWalkOff() {
-    if (currentInning >= 9 && isBottom && homeScore > awayScore) {
-        isGameOver = true;
-        messageDiv.textContent = "WALK-OFF VICTORY!!!";
-        endGame();
-    }
-}
-
-function checkInningEnd() {
-    if (outs >= 3) {
-        if (currentInning >= 9 && (!isBottom || homeScore !== awayScore)) {
-            isGameOver = true;
-            endGame();
-        } else {
-            outs = 0; strikes = 0; balls = 0;
-            runners = [false, false, false];
-            if (isBottom) { currentInning++; isBottom = false; } else { isBottom = true; }
-            messageDiv.textContent = `${isBottom ? "Bottom" : "Top"} of ${currentInning} begins!`;
-            updateBasesUI();
-            updateLineScoreUI();
-        }
-    }
-    updateScoreboard();
 }
 
 function endPitch(swung) {
@@ -317,15 +277,6 @@ function endPitch(swung) {
         else handleBall();
     }
     updateScoreboard();
-}
-
-function endGame() {
-    clearInterval(autoPitchTimer);
-    const win = homeScore > awayScore;
-    const msg = win ? "VICTORY!" : (homeScore === awayScore ? "DRAW!" : "DEFEAT...");
-    setTimeout(() => {
-        if (confirm(`${msg}\nFinal: Away ${awayScore} - Home ${homeScore}\nPlay again?`)) initRandomScenario();
-    }, 1000);
 }
 
 swingBtn.addEventListener('click', swing);

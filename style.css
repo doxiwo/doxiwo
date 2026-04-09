@@ -112,20 +112,19 @@ body {
 }
 
 #bat {
-    width: 12px; height: 90px;
-    background: linear-gradient(to bottom, #8b4513, #5d2e0d);
-    border-radius: 6px 6px 4px 4px;
+    width: 60px; height: 12px;
+    background: linear-gradient(to right, #8b4513, #5d2e0d);
+    border-radius: 4px 6px 6px 4px;
     position: absolute;
-    bottom: 40px; 
-    left: calc(50% - 70px); /* Positioned to the left of the plate */
-    transform-origin: bottom center;
-    transform: rotate(-30deg); /* Loaded back */
-    transition: transform 0.1s cubic-bezier(0.1, 0.7, 0.1, 1);
+    bottom: 5px; /* Bottom of the field */
+    left: 50%;
+    transform: translateX(-50%); /* Start flat at the bottom */
+    transition: transform 0.1s cubic-bezier(0.17, 0.67, 0.83, 0.67);
     z-index: 3;
 }
 
 #bat.swinging {
-    transform: rotate(150deg) translateX(40px); /* Swings forward into the zone (left to right) */
+    transform: translateX(-50%) translateY(-100px) rotate(-15deg); /* Swings upwards toward the pitch */
 }
 
 #settings { margin-bottom: 0.8rem; font-size: 0.8rem; }
