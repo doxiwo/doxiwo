@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Big Man's MLB Journey</title>
+    <title>Big Man's Full-Game Simulation</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="game-container">
         <div id="game-header">
             <h1>Action Baseball</h1>
-            <div id="inning-display">9th (Bottom)</div>
+            <div id="inning-display"><span id="inning-num">1</span>st (<span id="inning-half">Top</span>)</div>
         </div>
 
         <div id="batter-profile">
@@ -27,7 +27,7 @@
         <div id="stats-bar">
             <div class="stat">S: <span id="strikes">0</span></div>
             <div class="stat">B: <span id="balls">0</span></div>
-            <div class="stat">O: <span id="outs">2</span></div>
+            <div class="stat">O: <span id="outs">0</span></div>
         </div>
 
         <div id="field">
@@ -55,7 +55,7 @@
             <button id="swing-btn" disabled>Swing! (Space)</button>
         </div>
 
-        <div id="message">Next pitch in 3s...</div>
+        <div id="message">Loading game...</div>
     </div>
     <script src="main.js"></script>
 </body>

@@ -111,16 +111,16 @@ h1 { margin: 0; font-size: 1.2rem; color: #2c3e50; }
     background: linear-gradient(to bottom, #8b4513, #5d2e0d);
     border-radius: 6px 6px 4px 4px;
     position: absolute;
-    bottom: 50px; /* High stance */
-    left: calc(50% + 40px);
+    bottom: 40px; 
+    left: calc(50% + 50px);
     transform-origin: bottom center;
-    transform: rotate(45deg); /* Loaded position */
-    transition: transform 0.1s cubic-bezier(0.17, 0.67, 0.83, 0.67);
+    transform: rotate(30deg); /* Waiting position */
+    transition: transform 0.12s cubic-bezier(0.1, 0.7, 0.1, 1);
     z-index: 3;
 }
 
 #bat.swinging {
-    transform: rotate(-135deg); /* Full follow-through across plate */
+    transform: rotate(-150deg) translateX(-40px); /* Swing forward into the zone */
 }
 
 #settings { margin-bottom: 1rem; font-size: 0.85rem; }
