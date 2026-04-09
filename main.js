@@ -1,347 +1,249 @@
-// --- DOM Elements ---
-const strikesSpan = document.getElementById('strikes');
-const ballsSpan = document.getElementById('balls');
-const outsDots = document.getElementById('outs-dots');
-const awayTotal = document.getElementById('away-total');
-const homeTotal = document.getElementById('home-total');
-const inningNum = document.getElementById('inning-num');
-const inningHalf = document.getElementById('inning-half');
-const avgSpan = document.getElementById('avg');
-const currentTeamSpan = document.getElementById('current-team');
-const abCountSpan = document.getElementById('ab-count');
-const swingBtn = document.getElementById('swing-btn');
-const messageDiv = document.getElementById('message');
-const ball = document.getElementById('ball');
-const bat = document.getElementById('bat');
-const strikeZone = document.getElementById('strike-zone');
-const difficultySelect = document.getElementById('difficulty');
-const bases = [document.getElementById('base-1'), document.getElementById('base-2'), document.getElementById('base-3')];
-const awayLineRow = document.getElementById('away-line');
-const homeLineRow = document.getElementById('home-line');
-const notifOverlay = document.getElementById('notification-overlay');
-const notifTitle = document.getElementById('notif-title');
-const notifBody = document.getElementById('notif-body');
-const notifBtn = document.getElementById('notif-btn');
-
-// --- Game State ---
-let strikes = 0, balls = 0, outs = 0, awayScore = 0, homeScore = 0;
-let currentInning = 1, isBottom = false, runners = [false, false, false];
-let isPitching = false, hasSwung = false, isGameOver = false;
-let pitchStartTime = 0, pitchDuration = 0, isStrikePitch = true, autoPitchTimer = null;
-let sessionABs = 0;
-
-// Career Data
-let careerHits = parseInt(localStorage.getItem('bigManHits')) || 0;
-let careerAtBats = parseInt(localStorage.getItem('bigManAtBats')) || 0;
-let teamIndex = parseInt(localStorage.getItem('bigManTeamIndex')) || 0;
-
+// --- Constants ---
+const STRIKE_ZONE_TOP = 180;
+const STRIKE_ZONE_BOTTOM = 260;
 const LEAGUES = [
-    { name: "Sandlot League", team: "Local Nobodies", minAvg: 0.0, maxAvg: 1.0 },
-    { name: "Independent League", team: "Dirt Diggers", minAvg: 0.200, maxAvg: 0.300 },
-    { name: "Minor League (A)", team: "Wood Bats", minAvg: 0.250, maxAvg: 0.350 },
-    { name: "Minor League (AAA)", team: "Future Stars", minAvg: 0.300, maxAvg: 0.400 },
-    { name: "MLB (Low-tier)", team: "Oakland Athletics", minAvg: 0.350, maxAvg: 0.450 },
-    { name: "MLB (Mid-tier)", team: "Toronto Blue Jays", minAvg: 0.400, maxAvg: 0.500 },
-    { name: "MLB (Elite)", team: "NY Yankees", minAvg: 0.450, maxAvg: 1.0 }
+    { name: "STREET LEAGUE", team: "LOCAL NOBODIES", min: 0.0, max: 0.3 },
+    { name: "MINOR LEAGUE (A)", team: "WOOD BATS", min: 0.25, max: 0.35 },
+    { name: "MINOR LEAGUE (AAA)", team: "FUTURE STARS", min: 0.3, max: 0.45 },
+    { name: "MAJOR LEAGUE (MLB)", team: "NY YANKEES", min: 0.4, max: 1.0 }
 ];
 
-let awayLine = [0,0,0,0,0,0,0,0,0];
-let homeLine = [0,0,0,0,0,0,0,0,0];
+// --- DOM Elements ---
+const el = {
+    awayRuns: document.getElementById('away-runs'),
+    homeRuns: document.getElementById('home-runs'),
+    inningHalf: document.getElementById('inning-half'),
+    inningNum: document.getElementById('inning-num'),
+    strikes: document.getElementById('strikes'),
+    balls: document.getElementById('balls'),
+    outsDots: document.getElementById('outs-dots'),
+    avg: document.getElementById('avg'),
+    currentTeam: document.getElementById('current-team'),
+    ball: document.getElementById('ball'),
+    bat: document.getElementById('bat'),
+    swingBtn: document.getElementById('swing-btn'),
+    status: document.getElementById('status-message'),
+    resultOverlay: document.getElementById('result-overlay'),
+    resultText: document.getElementById('result-text'),
+    notifOverlay: document.getElementById('notification-overlay'),
+    notifTitle: document.getElementById('notif-title'),
+    notifBody: document.getElementById('notif-body'),
+    notifBtn: document.getElementById('notif-btn'),
+    lineScore: document.getElementById('line-score'),
+    bases: [document.getElementById('base-1'), document.getElementById('base-2'), document.getElementById('base-3')]
+};
 
-const STRIKE_ZONE_TOP = 180, STRIKE_ZONE_BOTTOM = 260;
+// --- Game State ---
+let state = {
+    strikes: 0, balls: 0, outs: 0,
+    awayScore: 0, homeScore: 0,
+    inning: 1, isBottom: false,
+    runners: [false, false, false],
+    isPitching: false, hasSwung: false,
+    isGameOver: false,
+    pitchStartTime: 0, pitchDuration: 0, isStrikePitch: true,
+    careerHits: parseInt(localStorage.getItem('bigManHits')) || 0,
+    careerABs: parseInt(localStorage.getItem('bigManABs')) || 0,
+    teamIdx: parseInt(localStorage.getItem('bigManTeamIdx')) || 0,
+    currentStep: 'IDLE' // IDLE, COUNTDOWN, PITCHING, RESULT
+};
 
-// --- Audio ---
+// --- Audio Engine ---
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playSound(type) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
     const now = audioCtx.currentTime;
-    if (type === 'pop') {
-        createOsc(440, 110, 0.2, 0.1);
-    } else if (type === 'crack') {
-        createWhiteNoise(0.5, 0.05); // Snap
-        createOsc(150, 40, 0.6, 0.1); // Thump
-    } else if (type === 'thud') {
-        createOsc(80, 40, 0.4, 0.2, 'triangle');
-    } else if (type === 'cheer') {
-        createWhiteNoise(0.3, 1.5, true); 
-    } else if (type === 'bigCheer') {
-        createWhiteNoise(0.5, 3.0, true); 
-    }
+    if (type === 'pop') { createOsc(440, 110, 0.1, 0.1); }
+    else if (type === 'crack') { createWhiteNoise(0.4, 0.05); createOsc(150, 40, 0.5, 0.1); }
+    else if (type === 'thud') { createOsc(100, 40, 0.3, 0.2, 'triangle'); }
+    else if (type === 'cheer') { createWhiteNoise(0.2, 1.5, true); }
+    else if (type === 'bigCheer') { createWhiteNoise(0.4, 3.0, true); }
 }
-function createOsc(startFreq, endFreq, vol, dur, type = 'sine') {
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.type = type; osc.connect(gain); gain.connect(audioCtx.destination);
-    const now = audioCtx.currentTime;
-    osc.frequency.setValueAtTime(startFreq, now);
-    osc.frequency.exponentialRampToValueAtTime(endFreq, now + dur);
-    gain.gain.setValueAtTime(vol, now);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + dur);
-    osc.start(now); osc.stop(now + dur);
+function createOsc(f1, f2, v, d, t = 'sine') {
+    const o = audioCtx.createOscillator(); const g = audioCtx.createGain();
+    o.type = t; o.connect(g); g.connect(audioCtx.destination);
+    o.frequency.setValueAtTime(f1, audioCtx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(f2, audioCtx.currentTime + d);
+    g.gain.setValueAtTime(v, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d);
+    o.start(); o.stop(audioCtx.currentTime + d);
 }
-function createWhiteNoise(vol, dur, swell = false) {
-    const bufferSize = audioCtx.sampleRate * dur;
-    const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
-    const data = buffer.getChannelData(0);
-    for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-    const noise = audioCtx.createBufferSource();
-    noise.buffer = buffer;
-    const gain = audioCtx.createGain();
-    const filter = audioCtx.createBiquadFilter();
-    filter.type = 'lowpass'; filter.frequency.value = 1000;
-    noise.connect(filter); filter.connect(gain); gain.connect(audioCtx.destination);
-    const now = audioCtx.currentTime;
-    if (swell) {
-        gain.gain.setValueAtTime(0, now);
-        gain.gain.linearRampToValueAtTime(vol, now + 0.2);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + dur);
-    } else {
-        gain.gain.setValueAtTime(vol, now);
-        gain.gain.exponentialRampToValueAtTime(0.01, now + dur);
-    }
-    noise.start(now);
+function createWhiteNoise(v, d, swell = false) {
+    const b = audioCtx.createBuffer(1, audioCtx.sampleRate * d, audioCtx.sampleRate);
+    const data = b.getChannelData(0); for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const s = audioCtx.createBufferSource(); s.buffer = b;
+    const g = audioCtx.createGain(); const f = audioCtx.createBiquadFilter();
+    f.type = 'lowpass'; f.frequency.value = 1200;
+    s.connect(f); f.connect(g); g.connect(audioCtx.destination);
+    if (swell) { g.gain.setValueAtTime(0, audioCtx.currentTime); g.gain.linearRampToValueAtTime(v, audioCtx.currentTime + 0.2); g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d); }
+    else { g.gain.setValueAtTime(v, audioCtx.currentTime); g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + d); }
+    s.start();
 }
 
-// --- Career Logic ---
-function updateCareerStats(isHit, isAtBat) {
-    if (isHit) careerHits++;
-    if (isAtBat) { careerAtBats++; sessionABs++; }
-    localStorage.setItem('bigManHits', careerHits);
-    localStorage.setItem('bigManAtBats', careerAtAtBats);
-    updateAvgDisplay();
-}
-
-function updateAvgDisplay() {
-    const avg = careerAtBats === 0 ? 0 : careerHits / careerAtBats;
-    avgSpan.textContent = avg.toFixed(3).substring(1);
-    currentTeamSpan.textContent = LEAGUES[teamIndex].team;
-    abCountSpan.textContent = sessionABs;
-}
-
-function checkCareerMove() {
-    const avg = careerHits / careerAtBats;
-    if (sessionABs >= 3) {
-        if (avg > LEAGUES[teamIndex].maxAvg && teamIndex < LEAGUES.length - 1) {
-            showNotification("CONTRACT OFFER!", `The ${LEAGUES[teamIndex + 1].team} from ${LEAGUES[teamIndex + 1].name} are offering a contract!`, () => {
-                teamIndex++;
-                localStorage.setItem('bigManTeamIndex', teamIndex);
-                sessionABs = 0;
-                initRandomScenario();
-            });
-            return true;
-        } else if (avg < LEAGUES[teamIndex].minAvg && teamIndex > 0) {
-            showNotification("DEMOTED...", `You've been sent down to the ${LEAGUES[teamIndex - 1].team}. Work harder!`, () => {
-                teamIndex--;
-                localStorage.setItem('bigManTeamIndex', teamIndex);
-                sessionABs = 0;
-                initRandomScenario();
-            });
-            return true;
-        } else {
-            showNotification("Game Session Over", `Next game starts now. AVG: ${avg.toFixed(3).substring(1)}`, () => {
-                sessionABs = 0;
-                initRandomScenario();
-            });
-            return true;
-        }
-    }
-    return false;
-}
-
-function showNotification(title, body, callback) {
-    clearInterval(autoPitchTimer);
-    notifTitle.textContent = title;
-    notifBody.textContent = body;
-    notifBtn.onclick = () => {
-        notifOverlay.classList.add('hidden');
-        callback();
-    };
-    notifOverlay.classList.remove('hidden');
-}
-
-// --- Line Score Management ---
-function updateLineScoreUI() {
-    awayTotal.textContent = awayScore;
-    homeTotal.textContent = homeScore;
-    for (let i = 0; i < 9; i++) {
-        awayLineRow.cells[i+1].textContent = (i + 1 < currentInning || (i + 1 === currentInning && isBottom)) ? awayLine[i] : (i + 1 === currentInning ? awayLine[i] : "-");
-        homeLineRow.cells[i+1].textContent = (i + 1 < currentInning) ? homeLine[i] : (i + 1 === currentInning && isBottom ? homeLine[i] : "-");
-    }
-}
-
-// --- Game Logic ---
-function initRandomScenario() {
-    isGameOver = false; strikes = 0; balls = 0; outs = Math.floor(Math.random() * 3);
-    currentInning = Math.floor(Math.random() * 9) + 1; isBottom = Math.random() > 0.5;
-    awayScore = 0; homeScore = 0;
+// --- Logic ---
+function updateUI() {
+    el.awayRuns.textContent = state.awayScore;
+    el.homeRuns.textContent = state.homeScore;
+    el.inningHalf.textContent = state.isBottom ? "BOT" : "TOP";
+    el.inningNum.textContent = state.inning;
+    el.strikes.textContent = state.strikes;
+    el.balls.textContent = state.balls;
+    el.avg.textContent = (state.careerABs === 0 ? 0 : state.careerHits / state.careerABs).toFixed(3).substring(1);
+    el.currentTeam.textContent = LEAGUES[state.teamIdx].name;
     
-    for (let i = 0; i < 9; i++) {
-        if (i + 1 < currentInning) {
-            awayLine[i] = Math.floor(Math.random() * 3);
-            homeLine[i] = Math.floor(Math.random() * 3);
-        } else if (i + 1 === currentInning) {
-            awayLine[i] = Math.floor(Math.random() * 2);
-            homeLine[i] = isBottom ? Math.floor(Math.random() * 2) : 0;
-        } else {
-            awayLine[i] = 0; homeLine[i] = 0;
-        }
-        awayScore += awayLine[i];
-        homeScore += homeLine[i];
-    }
-    
-    runners = [Math.random() > 0.7, Math.random() > 0.8, Math.random() > 0.9];
-    updateScoreboard();
-    updateLineScoreUI();
-    updateAvgDisplay();
-    messageDiv.textContent = "Highlight loading...";
-    setTimeout(startAutoPitch, 1500);
-}
-
-function updateScoreboard() {
-    strikesSpan.textContent = strikes; ballsSpan.textContent = balls;
-    inningNum.textContent = currentInning; inningHalf.textContent = isBottom ? "Bottom" : "Top";
-    outsDots.innerHTML = "";
+    el.outsDots.innerHTML = "";
     for (let i = 0; i < 2; i++) {
-        const dot = document.createElement('div');
-        dot.className = 'out-dot' + (i < outs ? ' filled' : '');
-        outsDots.appendChild(dot);
+        const d = document.createElement('div');
+        d.className = 'out-dot' + (i < state.outs ? ' filled' : '');
+        el.outsDots.appendChild(d);
     }
-    updateBasesUI();
+    state.runners.forEach((r, i) => el.bases[i].classList.toggle('occupied', r));
+
+    // Update Line Score row cells
+    const row = state.isBottom ? document.getElementById('home-row') : document.getElementById('away-row');
+    row.cells[state.inning].textContent = state.isBottom ? state.homeScore : state.awayScore;
 }
 
-function updateBasesUI() { runners.forEach((occupied, index) => bases[index].classList.toggle('occupied', occupied)); }
+function initScenario() {
+    state.currentStep = 'IDLE';
+    state.inning = Math.floor(Math.random() * 9) + 1;
+    state.isBottom = Math.random() > 0.5;
+    state.outs = Math.floor(Math.random() * 3);
+    state.strikes = 0; state.balls = 0;
+    state.awayScore = Math.floor(Math.random() * (state.inning + 1));
+    state.homeScore = Math.floor(Math.random() * (state.inning + 1));
+    state.runners = [Math.random() > 0.7, Math.random() > 0.8, Math.random() > 0.9];
+    state.isGameOver = false;
+    
+    // Clear Line Score cells
+    for(let i=1; i<=9; i++) {
+        document.getElementById('away-row').cells[i].textContent = "-";
+        document.getElementById('home-row').cells[i].textContent = "-";
+    }
+    
+    el.resultOverlay.classList.add('hidden');
+    updateUI();
+    startCountdown();
+}
 
-function startAutoPitch() {
-    if (autoPitchTimer) clearInterval(autoPitchTimer);
-    autoPitchTimer = setInterval(() => {
-        if (!isPitching && !isGameOver) {
-            let countdown = 3;
-            const countInterval = setInterval(() => {
-                if (isGameOver) { clearInterval(countInterval); return; }
-                messageDiv.textContent = `Pitch in ${countdown}s...`;
-                countdown--;
-                if (countdown < 0) { clearInterval(countInterval); pitch(); }
-            }, 1000);
-        }
-    }, 4500);
+function startCountdown() {
+    state.currentStep = 'COUNTDOWN';
+    let count = 3;
+    const timer = setInterval(() => {
+        if (state.isGameOver) { clearInterval(timer); return; }
+        el.status.textContent = `NEXT PITCH IN ${count}s...`;
+        count--;
+        if (count < 0) { clearInterval(timer); pitch(); }
+    }, 1000);
 }
 
 function pitch() {
-    if (isPitching || isGameOver) return;
-    const diff = difficultySelect.value;
-    const settings = diff === 'easy' ? { dr: [1200, 1800], sp: 0.9, zs: 100 } :
-                     diff === 'hard' ? { dr: [500, 800], sp: 0.5, zs: 60 } : { dr: [700, 1300], sp: 0.7, zs: 80 };
-    strikeZone.style.width = settings.zs + 'px'; strikeZone.style.height = settings.zs + 'px';
-    isPitching = true; hasSwung = false; swingBtn.disabled = false;
-    messageDiv.textContent = "Pitching!"; playSound('pop');
-    pitchDuration = settings.dr[0] + Math.random() * (settings.dr[1] - settings.dr[0]);
-    isStrikePitch = Math.random() < settings.sp;
-    const startOffset = (Math.random() - 0.5) * 40;
-    const endOffset = isStrikePitch ? (Math.random() - 0.5) * settings.zs : (Math.random() > 0.5 ? 80 : -80);
-    ball.style.setProperty('--duration', `${pitchDuration}ms`);
-    ball.style.setProperty('--start-offset', `${startOffset}px`);
-    ball.style.setProperty('--end-offset', `${endOffset}px`);
-    ball.classList.remove('pitching'); void ball.offsetWidth; ball.classList.add('pitching');
-    pitchStartTime = Date.now();
-    setTimeout(() => { if (isPitching && !hasSwung) endPitch(false); }, pitchDuration);
+    state.currentStep = 'PITCHING';
+    state.isPitching = true; state.hasSwung = false; el.swingBtn.disabled = false;
+    el.status.textContent = "PITCHING!"; playSound('pop');
+
+    state.pitchDuration = 700 + Math.random() * 800; // 0.7s - 1.5s
+    state.isStrikePitch = Math.random() < 0.75;
+    const startOff = (Math.random() - 0.5) * 40;
+    const endOff = state.isStrikePitch ? (Math.random() - 0.5) * 60 : (Math.random() > 0.5 ? 80 : -80);
+
+    el.ball.style.setProperty('--duration', `${state.pitchDuration}ms`);
+    el.ball.style.setProperty('--start-offset', `${startOff}px`);
+    el.ball.style.setProperty('--end-offset', `${endOff}px`);
+    
+    el.ball.classList.remove('pitching'); void el.ball.offsetWidth; el.ball.classList.add('pitching');
+    state.pitchStartTime = Date.now();
+
+    setTimeout(() => { if (state.isPitching && !state.hasSwung) resolvePitch(false); }, state.pitchDuration);
 }
 
 function swing() {
-    if (!isPitching || hasSwung || isGameOver) return;
-    hasSwung = true; swingBtn.disabled = true;
-    bat.classList.add('swinging'); setTimeout(() => bat.classList.remove('swinging'), 300);
-    const progress = (Date.now() - pitchStartTime) / pitchDuration;
-    const ballTop = -30 + (380 * progress);
-    if (ballTop >= STRIKE_ZONE_TOP && ballTop <= STRIKE_ZONE_BOTTOM) handleHit(ballTop);
-    else handleStrike("Strike!");
-    endPitch(true);
+    if (!state.isPitching || state.hasSwung) return;
+    state.hasSwung = true; el.swingBtn.disabled = true;
+    el.bat.classList.add('swinging'); setTimeout(() => el.bat.classList.remove('swinging'), 300);
+
+    const progress = (Date.now() - state.pitchStartTime) / state.pitchDuration;
+    const ballTop = -30 + (390 * progress);
+
+    if (ballTop >= STRIKE_ZONE_TOP && ballTop <= STRIKE_ZONE_BOTTOM) resolvePitch(true, ballTop);
+    else resolvePitch(true, -1); // Whiff
 }
 
-function handleHit(ballTop) {
-    playSound('crack');
-    const accuracy = Math.abs(ballTop - ((STRIKE_ZONE_TOP + STRIKE_ZONE_BOTTOM) / 2));
-    let hitResult = "";
-    if (accuracy < 10) { 
-        hitResult = "HOME RUN!!!"; 
-        playSound('bigCheer'); 
-        advanceRunners(4);
-        updateCareerStats(true, true); 
-    }
-    else if (accuracy < 20) {
-        hitResult = "Triple!";
-        playSound('cheer');
-        advanceRunners(3);
-        updateCareerStats(true, true);
-    }
-    else if (accuracy < 30) {
-        hitResult = "Double!";
-        playSound('cheer');
-        advanceRunners(2);
-        updateCareerStats(true, true);
-    }
-    else if (accuracy < 38) {
-        hitResult = "Single!";
-        playSound('cheer');
-        advanceRunners(1);
-        updateCareerStats(true, true);
-    }
-    else { hitResult = "Foul Ball"; if (strikes < 2) strikes++; }
-    
-    messageDiv.textContent = hitResult;
-    if (hitResult !== "Foul Ball") {
-        strikes = 0; balls = 0;
-        if (!checkCareerMove()) setTimeout(initRandomScenario, 1500);
-    }
-}
+function resolvePitch(swung, ballTop) {
+    state.isPitching = false; state.currentStep = 'RESULT';
+    let result = ""; let sound = "thud"; let isHit = false; let isAB = false;
 
-function advanceRunners(numBases) {
-    let newRuns = 0;
-    for (let i = 2; i >= 0; i--) {
-        if (runners[i]) {
-            runners[i] = false;
-            if (i + numBases >= 3) newRuns++; else runners[i + numBases] = true;
+    if (!swung) {
+        if (state.isStrikePitch) { result = "STRIKE! (LOOKING)"; }
+        else { result = "BALL!"; state.balls++; }
+    } else {
+        if (ballTop === -1) { result = "STRIKE! (WHIFF)"; }
+        else {
+            const accuracy = Math.abs(ballTop - ((STRIKE_ZONE_TOP + STRIKE_ZONE_BOTTOM)/2));
+            if (accuracy < 10) { result = "HOME RUN!!!"; sound = "bigCheer"; isHit = true; isAB = true; }
+            else if (accuracy < 38) { result = "HIT!!"; sound = "cheer"; isHit = true; isAB = true; }
+            else { result = "FOUL BALL"; sound = "pop"; }
         }
     }
-    if (numBases < 4) runners[numBases - 1] = true; else newRuns++; 
-    if (newRuns > 0) {
-        if (isBottom) {
-            homeScore += newRuns;
-            homeLine[currentInning-1] += newRuns;
-        } else {
-            awayScore += newRuns;
-            awayLine[currentInning-1] += newRuns;
+
+    if (result.includes("STRIKE")) { state.strikes++; if (state.strikes >= 3) { result = "OUT!!"; isAB = true; } }
+    if (state.balls >= 4) { result = "WALK!"; isHit = true; isAB = false; }
+
+    displayResult(result, sound);
+    if (isAB || isHit) updateCareer(isHit, isAB);
+
+    setTimeout(() => {
+        if (isAB || isHit) checkCareerMove() ? null : initScenario();
+        else {
+            if (result === "OUT!!") initScenario();
+            else {
+                if (state.strikes >= 3 || state.balls >= 4) { state.strikes = 0; state.balls = 0; }
+                el.resultOverlay.classList.add('hidden');
+                updateUI();
+                startCountdown();
+            }
         }
-        updateLineScoreUI();
+    }, 1500);
+}
+
+function displayResult(text, sound) {
+    el.resultText.textContent = text;
+    el.resultOverlay.classList.remove('hidden');
+    playSound('crack'); // Always bat sound if swung? No, only on hit/foul
+    if (sound) playSound(sound);
+    updateUI();
+}
+
+function updateCareer(isHit, isAB) {
+    if (isHit) state.careerHits++;
+    if (isAB) state.careerABs++;
+    localStorage.setItem('bigManHits', state.careerHits);
+    localStorage.setItem('bigManABs', state.careerABs);
+}
+
+function checkCareerMove() {
+    const avg = state.careerHits / state.careerABs;
+    let moved = false;
+    if (avg > LEAGUES[state.teamIdx].max && state.teamIdx < LEAGUES.length - 1) {
+        showNotif("PROMOTION!", `OFFER: ${LEAGUES[state.teamIdx+1].team}!`, () => { state.teamIdx++; saveCareer(); initScenario(); });
+        moved = true;
+    } else if (avg < LEAGUES[state.teamIdx].min && state.teamIdx > 0) {
+        showNotif("DEMOTION", `BACK TO ${LEAGUES[state.teamIdx-1].team}`, () => { state.teamIdx--; saveCareer(); initScenario(); });
+        moved = true;
     }
-    updateBasesUI();
+    return moved;
 }
 
-function handleStrike(msg) {
-    playSound('thud');
-    strikes++; messageDiv.textContent = msg;
-    if (strikes >= 3) {
-        messageDiv.textContent = "OUT!";
-        updateCareerStats(false, true);
-        if (!checkCareerMove()) setTimeout(initRandomScenario, 1500);
-    }
+function saveCareer() {
+    localStorage.setItem('bigManTeamIdx', state.teamIdx);
 }
 
-function handleBall() {
-    balls++; messageDiv.textContent = "Ball!";
-    if (balls >= 4) {
-        messageDiv.textContent = "Walk!";
-        advanceRunners(1);
-        if (!checkCareerMove()) setTimeout(initRandomScenario, 1500);
-    }
+function showNotif(title, body, cb) {
+    el.notifTitle.textContent = title; el.notifBody.textContent = body;
+    el.notifBtn.onclick = () => { el.notifOverlay.classList.add('hidden'); cb(); };
+    el.notifOverlay.classList.remove('hidden');
 }
 
-function endPitch(swung) {
-    isPitching = false; swingBtn.disabled = true;
-    if (!swung) { if (isStrikePitch) handleStrike("Strike!"); else handleBall(); }
-    updateScoreboard();
-}
-
-swingBtn.addEventListener('click', swing);
-document.addEventListener('keydown', (e) => { if (e.code === 'Space' && !swingBtn.disabled) swing(); });
-initRandomScenario();
-updateAvgDisplay();
+el.swingBtn.addEventListener('click', swing);
+document.addEventListener('keydown', (e) => { if (e.code === 'Space' && !el.swingBtn.disabled) swing(); });
+initScenario();

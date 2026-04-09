@@ -3,48 +3,49 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Big Man's Pro Journey</title>
+    <title>Big Man: Pro Highlight Reel</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div id="game-container">
-        <!-- Line Score Table -->
-        <table id="line-score">
-            <thead>
-                <tr id="inning-headers">
-                    <th>Teams</th>
-                    <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th>
-                    <th class="total">R</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr id="away-line">
-                    <td>Away</td>
-                    <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
-                    <td class="total" id="away-total">0</td>
-                </tr>
-                <tr id="home-line">
-                    <td>Home</td>
-                    <td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td>
-                    <td class="total" id="home-total">0</td>
-                </tr>
-            </tbody>
-        </table>
+        <!-- Professional Line Score -->
+        <div id="scoreboard-container">
+            <table id="line-score">
+                <thead>
+                    <tr>
+                        <th>TEAM</th>
+                        <th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th>
+                        <th class="total-col">R</th><th class="total-col">H</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr id="away-row">
+                        <td class="team-name">AWAY</td>
+                        <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                        <td class="total-val" id="away-runs">0</td><td class="total-val">0</td>
+                    </tr>
+                    <tr id="home-row">
+                        <td class="team-name">HOME</td>
+                        <td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td>
+                        <td class="total-val" id="home-runs">0</td><td class="total-val">0</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
 
-        <div id="broadcast-header">
-            <div id="inning-display">Inning: <span id="inning-num">1</span>st (<span id="inning-half">Top</span>)</div>
-            <div id="outs-display">Outs: <span id="outs-dots"></span></div>
+        <div id="broadcast-bar">
+            <div id="inning-box"><span id="inning-half">TOP</span> <span id="inning-num">1</span></div>
+            <div id="count-box">
+                <div class="count-item">S <span id="strikes">0</span></div>
+                <div class="count-item">B <span id="balls">0</span></div>
+                <div class="count-item">O <span id="outs-dots"></span></div>
+            </div>
         </div>
 
         <div id="batter-card">
+            <div class="batter-header">CURRENT BATTER</div>
             <div id="batter-name">BIG MAN</div>
-            <div id="batter-stats">AVG: <span id="avg">.000</span> | <span id="current-team">Sandlot League</span></div>
-            <div id="session-status">AB: <span id="ab-count">0</span>/3</div>
-        </div>
-        
-        <div id="stats-bar">
-            <div class="stat">Strikes: <span id="strikes">0</span></div>
-            <div class="stat">Balls: <span id="balls">0</span></div>
+            <div id="batter-stats">CAREER AVG: <span id="avg">.000</span> | <span id="current-team">STREET LEAGUE</span></div>
         </div>
 
         <div id="field">
@@ -53,33 +54,28 @@
                 <div id="base-2" class="base"></div>
                 <div id="base-1" class="base"></div>
             </div>
-
             <div id="strike-zone"></div>
             <div id="ball"></div>
             <div id="bat"></div>
-        </div>
-
-        <div id="settings">
-            <label for="difficulty">Difficulty:</label>
-            <select id="difficulty">
-                <option value="easy">Easy</option>
-                <option value="normal" selected>Normal</option>
-                <option value="hard">Hard</option>
-            </select>
+            
+            <!-- Dynamic Result Overlay -->
+            <div id="result-overlay" class="hidden">
+                <div id="result-text">HOME RUN!!</div>
+            </div>
         </div>
 
         <div id="controls">
-            <button id="swing-btn" disabled>Swing! (Space)</button>
+            <button id="swing-btn" disabled>SWING! (SPACE)</button>
         </div>
 
-        <div id="message">Big Man is stepping in...</div>
+        <div id="status-message">SETTING UP SCENARIO...</div>
 
         <!-- Career Notifications -->
         <div id="notification-overlay" class="hidden">
             <div id="notification-content">
-                <h2 id="notif-title">CONTRACT OFFER!</h2>
-                <p id="notif-body">The NY Yankees are offering a contract.</p>
-                <button id="notif-btn">Sign Contract</button>
+                <h2 id="notif-title">OFFER!</h2>
+                <p id="notif-body">Team message here.</p>
+                <button id="notif-btn">SIGN CONTRACT</button>
             </div>
         </div>
     </div>
