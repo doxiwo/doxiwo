@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Big Man: Hard Mode Sessions</title>
+    <title>Big Man: Hard Pro Career</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -43,7 +43,7 @@
         </div>
 
         <div id="batter-card">
-            <div class="batter-header">SESSION GAME: <span id="ab-session">1</span>/3 AT-BATS</div>
+            <div class="batter-header">SESSION: <span id="ab-session">1</span>/3 AT-BATS</div>
             <div id="batter-name">BIG MAN</div>
             <div id="batter-stats">
                 AVG: <span id="avg">.000</span> (<span id="career-hits">0</span>/<span id="career-abs">0</span>)
@@ -72,7 +72,9 @@
             <button id="swing-btn" disabled>SWING! (SPACE)</button>
         </div>
 
-        <div id="status-message">PREPARING NEXT AT-BAT...</div>
+        <div id="status-message">PREPARING...</div>
+
+        <button id="restart-btn">RESET CAREER</button>
 
         <!-- Career Notifications -->
         <div id="notification-overlay" class="hidden">

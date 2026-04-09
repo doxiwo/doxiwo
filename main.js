@@ -2,10 +2,10 @@
 const STRIKE_ZONE_TOP = 180;
 const STRIKE_ZONE_BOTTOM = 260;
 const LEAGUES = [
-    { name: "STREET LEAGUE", team: "LOCAL NOBODIES", min: 0.0, max: 0.28 },
-    { name: "MINOR LEAGUE (A)", team: "WOOD BATS", min: 0.25, max: 0.33 },
-    { name: "MINOR LEAGUE (AAA)", team: "FUTURE STARS", min: 0.3, max: 0.4 },
-    { name: "MAJOR LEAGUE (MLB)", team: "NY YANKEES", min: 0.38, max: 1.0 }
+    { name: "STREET LEAGUE", team: "LOCAL NOBODIES", min: 0.0, max: 0.32, minABs: 15 },
+    { name: "MINOR LEAGUE (A)", team: "WOOD BATS", min: 0.28, max: 0.38, minABs: 30 },
+    { name: "MINOR LEAGUE (AAA)", team: "FUTURE STARS", min: 0.32, max: 0.42, minABs: 50 },
+    { name: "MAJOR LEAGUE (MLB)", team: "NY YANKEES", min: 0.38, max: 1.0, minABs: 100 }
 ];
 
 // --- DOM Elements ---
@@ -34,6 +34,7 @@ const el = {
     notifTitle: document.getElementById('notif-title'),
     notifBody: document.getElementById('notif-body'),
     notifBtn: document.getElementById('notif-btn'),
+    restartBtn: document.getElementById('restart-btn'),
     awayRow: document.getElementById('away-row'),
     homeRow: document.getElementById('home-row'),
     bases: [document.getElementById('base-1'), document.getElementById('base-2'), document.getElementById('base-3')]
@@ -98,14 +99,13 @@ function updateUI() {
     el.inningNum.textContent = state.inning;
     el.strikes.textContent = state.strikes;
     el.balls.textContent = state.balls;
-    el.abSession.textContent = state.sessionABCount + 1;
+    el.abSession.textContent = Math.min(state.sessionABCount + 1, 3);
     
-    // Stats
     el.careerHitsSpan.textContent = state.careerHits;
     el.careerABsSpan.textContent = state.careerABs;
     const avg = state.careerABs === 0 ? 0 : state.careerHits / state.careerABs;
     el.avg.textContent = avg.toFixed(3).substring(1);
-    el.currentTeam.textContent = LEAGUES[state.teamIdx].name;
+    el.currentTeam.textContent = LEAGUES[state.teamIdx].team;
     
     el.outsDots.innerHTML = "";
     for (let i = 0; i < 2; i++) {
@@ -116,19 +116,20 @@ function updateUI() {
     state.runners.forEach((r, i) => el.bases[i].classList.toggle('occupied', r));
 
     for (let i = 1; i <= 9; i++) {
-        el.awayRow.cells[i].textContent = (i < state.inning || (i === state.inning && state.isBottom)) ? state.lineScore.away[i-1] : "-";
-        el.homeRow.cells[i].textContent = (i < state.inning) ? state.lineScore.home[i-1] : (i === state.inning && state.isBottom ? state.lineScore.home[i-1] : "-");
+        el.awayRow.cells[i].textContent = (i <= state.inning) ? state.lineScore.away[i-1] : "-";
+        el.homeRow.cells[i].textContent = (i < state.inning || (i === state.inning && state.isBottom)) ? state.lineScore.home[i-1] : "-";
     }
 }
 
 function startNewGame() {
     state.sessionABCount = 0;
-    state.awayScore = 0; state.homeScore = 0;
-    state.awayHitsCount = Math.floor(Math.random() * 5);
+    state.homeScore = 0;
     state.homeHitsCount = 0;
-    state.lineScore.away = Array(9).fill(0).map(() => Math.floor(Math.random() * 2));
     state.lineScore.home = Array(9).fill(0);
+    // Away team setup
+    state.lineScore.away = Array(9).fill(0).map(() => Math.floor(Math.random() * 2));
     state.awayScore = state.lineScore.away.reduce((a,b) => a+b, 0);
+    state.awayHitsCount = Math.floor(state.awayScore * 1.5) + Math.floor(Math.random() * 3);
     initScenario(1);
 }
 
@@ -140,8 +141,8 @@ function initScenario(tier) {
     else if (tier === 2) state.inning = Math.floor(Math.random() * 3) + 4;
     else state.inning = Math.floor(Math.random() * 3) + 7;
     
-    state.isBottom = Math.random() > 0.5;
-    state.runners = [Math.random() > 0.8, Math.random() > 0.8, Math.random() > 0.9];
+    state.isBottom = true; // Player is always Home for simpler logic
+    state.runners = [Math.random() > 0.7, Math.random() > 0.8, Math.random() > 0.9];
     
     el.resultOverlay.classList.add('hidden');
     el.swingBtn.disabled = true;
@@ -163,9 +164,9 @@ function pitch() {
     state.isPitching = true; state.hasSwung = false; el.swingBtn.disabled = false;
     el.status.textContent = "PITCHING!"; playSound('pop');
 
-    // HARDER MODE: Fast & Tricky
-    state.pitchDuration = 350 + Math.random() * 400; // 0.35s - 0.75s (VERY FAST)
-    state.isStrikePitch = Math.random() < 0.6; // More balls to chase
+    // HARD MODE
+    state.pitchDuration = 350 + Math.random() * 400; 
+    state.isStrikePitch = Math.random() < 0.6; 
     const startOff = (Math.random() - 0.5) * 45;
     const endOff = state.isStrikePitch ? (Math.random() - 0.5) * 40 : (Math.random() > 0.5 ? 75 : -75);
 
@@ -194,8 +195,8 @@ function swing() {
 function resolvePitch(swung, ballTop) {
     state.isPitching = false;
     let result = ""; let sound = "thud"; 
-    let isHitResult = false; // Strictly H
-    let isABResult = false;  // Strictly AB (H or Out)
+    let isHitResult = false; 
+    let isABResult = false; 
 
     if (!swung) {
         if (state.isStrikePitch) { result = "STRIKE!"; }
@@ -204,53 +205,66 @@ function resolvePitch(swung, ballTop) {
         if (ballTop === -1) { result = "STRIKE!"; }
         else {
             const accuracy = Math.abs(ballTop - ((STRIKE_ZONE_TOP + STRIKE_ZONE_BOTTOM)/2));
-            if (accuracy < 10) { result = "HOME RUN!!!"; sound = "bigCheer"; isHitResult = true; isABResult = true; addRuns(4); }
-            else if (accuracy < 32) { result = "HIT!!"; sound = "cheer"; isHitResult = true; isABResult = true; addRuns(1); }
+            if (accuracy < 10) { result = "HOME RUN!!!"; sound = "bigCheer"; isHitResult = true; isABResult = true; advanceRunners('HR'); }
+            else if (accuracy < 32) { result = "HIT!!"; sound = "cheer"; isHitResult = true; isABResult = true; advanceRunners('H'); }
             else { result = "FOUL BALL"; sound = "pop"; }
         }
     }
 
     if (result === "STRIKE!") { state.strikes++; if (state.strikes >= 3) { result = "OUT!!"; isABResult = true; } }
-    if (state.balls >= 4) { result = "WALK!"; isHitResult = false; isABResult = false; addRuns(1); }
+    if (state.balls >= 4) { result = "WALK!"; isHitResult = false; isABResult = false; advanceRunners('BB'); }
 
     displayResult(result, sound);
 
-    // After resolving result, handle the career and session progression
     setTimeout(() => {
         if (isABResult || isHitResult) {
             updateCareer(isHitResult, isABResult);
             state.sessionABCount++;
             if (state.sessionABCount >= 3) checkCareerMove() ? null : endGameSession();
             else initScenario(state.sessionABCount + 1);
-        } else if (result === "OUT!!") { // Struck out
+        } else if (result === "OUT!!") { 
             updateCareer(false, true);
             state.sessionABCount++;
             if (state.sessionABCount >= 3) checkCareerMove() ? null : endGameSession();
             else initScenario(state.sessionABCount + 1);
         } else {
-            // Ball, Foul, or Strike (not out yet)
             if (state.strikes >= 3 || state.balls >= 4) { state.strikes = 0; state.balls = 0; }
-            el.resultOverlay.classList.add('hidden'); 
-            updateUI(); 
-            startCountdown();
+            el.resultOverlay.classList.add('hidden'); updateUI(); startCountdown();
         }
     }, 1800);
 }
 
-function addRuns(count) {
-    if (state.isBottom) {
-        state.homeScore += count; state.homeHitsCount++;
-        state.lineScore.home[state.inning-1] += count;
-    } else {
-        state.awayScore += count; state.awayHitsCount++;
-        state.lineScore.away[state.inning-1] += count;
+function advanceRunners(type) {
+    let runsScored = 0;
+    const oldRunners = [...state.runners];
+    
+    if (type === 'HR') {
+        runsScored = oldRunners.filter(r => r).length + 1;
+        state.runners = [false, false, false];
+    } else if (type === 'H') {
+        // Single logic (as requested: 2nd/3rd score)
+        if (oldRunners[2]) runsScored++; // 3rd scores
+        if (oldRunners[1]) runsScored++; // 2nd scores
+        state.runners = [true, oldRunners[0], false]; // 1st -> 2nd, Batter -> 1st
+    } else if (type === 'BB') {
+        if (oldRunners[0] && oldRunners[1] && oldRunners[2]) runsScored++;
+        const r3 = oldRunners[2] || (oldRunners[1] && oldRunners[0]);
+        const r2 = oldRunners[1] || oldRunners[0];
+        state.runners = [true, r2, r3];
     }
+
+    if (runsScored > 0) {
+        state.homeScore += runsScored;
+        state.lineScore.home[state.inning-1] += runsScored;
+        el.resultText.textContent += ` (+${runsScored} RUNS!)`;
+    }
+    if (type === 'H' || type === 'HR') state.homeHitsCount++;
 }
 
 function displayResult(text, sound) {
     el.resultText.textContent = text;
     el.resultOverlay.classList.remove('hidden');
-    if (text.includes("HIT") || text === "HOME RUN!!!" || text === "FOUL BALL") playSound('crack');
+    if (text.includes("HIT") || text.includes("HOME") || text === "FOUL BALL") playSound('crack');
     if (sound) playSound(sound);
     updateUI();
 }
@@ -264,11 +278,14 @@ function updateCareer(isHit, isAB) {
 
 function checkCareerMove() {
     const avg = state.careerHits / state.careerABs;
-    if (avg > LEAGUES[state.teamIdx].max && state.teamIdx < LEAGUES.length - 1) {
-        showNotif("PROMOTION!", `NEW OFFER: ${LEAGUES[state.teamIdx+1].team}!`, () => { state.teamIdx++; saveCareer(); startNewGame(); });
+    const league = LEAGUES[state.teamIdx];
+    
+    if (avg > league.max && state.careerABs >= league.minABs && state.teamIdx < LEAGUES.length - 1) {
+        const next = LEAGUES[state.teamIdx+1];
+        showNotif("PROMOTION!", `OFFER FROM ${next.team}!`, () => { state.teamIdx++; saveCareer(); startNewGame(); });
         return true;
-    } else if (avg < LEAGUES[state.teamIdx].min && state.teamIdx > 0) {
-        showNotif("DEMOTION", `SENT DOWN TO ${LEAGUES[state.teamIdx-1].team}`, () => { state.teamIdx--; saveCareer(); startNewGame(); });
+    } else if (avg < league.min && state.teamIdx > 0) {
+        showNotif("DEMOTED", `BACK TO ${LEAGUES[state.teamIdx-1].team}`, () => { state.teamIdx--; saveCareer(); startNewGame(); });
         return true;
     }
     return false;
@@ -276,10 +293,17 @@ function checkCareerMove() {
 
 function saveCareer() { localStorage.setItem('bigManTeamIdx', state.teamIdx); }
 
+function resetCareer() {
+    if (confirm("Reset everything and start over?")) {
+        localStorage.clear();
+        location.reload();
+    }
+}
+
 function endGameSession() {
     const win = state.homeScore > state.awayScore;
     const msg = win ? "VICTORY!" : (state.homeScore === state.awayScore ? "DRAW!" : "DEFEAT...");
-    showNotif("GAME OVER", `${msg}\nFinal: Away ${state.awayScore} - Home ${state.homeScore}`, () => startNewGame());
+    showNotif("GAME OVER", `${msg}\nFinal: Away ${state.awayScore} - Home ${state.homeScore}\nNext game?`, () => startNewGame());
 }
 
 function showNotif(title, body, cb) {
@@ -289,5 +313,6 @@ function showNotif(title, body, cb) {
 }
 
 el.swingBtn.addEventListener('click', swing);
+el.restartBtn.addEventListener('click', resetCareer);
 document.addEventListener('keydown', (e) => { if (e.code === 'Space' && !el.swingBtn.disabled) swing(); });
 startNewGame();
